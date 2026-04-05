@@ -115,4 +115,4 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Reflexeiei885/test/ref
 
 Write-Host ""
 Write-Host "[✔] Done. Installed to: $dest" -ForegroundColor Green
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 1
