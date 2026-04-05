@@ -49,6 +49,17 @@ if (-not (Test-Path $lghubPath)) {
 }
 
 $dest = Join-Path $lghubPath "version.dll"
+
+# ปิด LGHUB
+Get-Process -Name "lghub*" -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+
+# ลบไฟล์เก่า
+if (Test-Path $dest) {
+    Remove-Item $dest -Force
+}
+
+# โหลดใหม่
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Aaawdws/Create-repository5/main/version.dll" -OutFile $dest
 
 Write-Host "Done. Installed to: $dest" -ForegroundColor Green
