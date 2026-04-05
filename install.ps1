@@ -6,48 +6,76 @@ RRRRR   AAAAA  N N N V   V   Y     X
 R   R   A   A  N  NN  V V    Y    X X 
 R    R  A   A  N   N   V     Y   X   X
 
-	R A N V Y X T E S T
-
+      R A N V Y X S T O R E
 "@
 
-# auto resize
-$lines = $logo -split "`n"
-$maxWidth = ($lines | Measure-Object Length -Maximum).Maximum
-$height = $lines.Count + 5
+# ===== GRADIENT COLORS =====
+$colors = @(
+    "Green",
+    "Green",
+    "Green"
+)
 
-$Host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size($maxWidth + 2, 100)
-$Host.UI.RawUI.WindowSize = New-Object System.Management.Automation.Host.Size($maxWidth + 2, $height)
+# ===== SHOW LOGO (LEFT + GRADIENT + TYPE EFFECT) =====
+function Show-Logo {
+    Clear-Host
 
-# ===== TYPE ANIMATION =====
-function Type-Text($text, $color="White") {
+    $lines = $logo -split "`n"
+    $colorIndex = 0
+
+    foreach ($line in $lines) {
+        $color = $colors[$colorIndex % $colors.Count]
+
+        foreach ($char in $line.ToCharArray()) {
+            Write-Host -NoNewline $char -ForegroundColor $color
+            Start-Sleep -Milliseconds 1   # ปรับความเร็วได้
+        }
+
+        Write-Host ""
+        $colorIndex++
+    }
+}
+
+# ===== TYPE TEXT =====
+function Type-Text($text, $color="White", $speed=3) {
     foreach ($char in $text.ToCharArray()) {
         Write-Host -NoNewline $char -ForegroundColor $color
-        Start-Sleep -Milliseconds 5
+        Start-Sleep -Milliseconds $speed
     }
     Write-Host ""
 }
 
-
-Clear-Host
-Type-Text $logo "Cyan"
-
-# ===== FAKE LOADING =====
+# ===== FAKE LOADING (CUSTOM BAR) =====
 function Fake-Loading($text) {
     Write-Host ""
-    Write-Host $text -ForegroundColor Yellow
-    for ($i = 0; $i -le 100; $i+=5) {
-        Write-Progress -Activity $text -Status "$i% Complete" -PercentComplete $i
-        Start-Sleep -Milliseconds 50
+    Type-Text $text "Yellow" 2
+
+    $barLength = 30
+    for ($i = 0; $i -le $barLength; $i++) {
+        $percent = [int](($i / $barLength) * 100)
+        $bar = ("#" * $i).PadRight($barLength, "-")
+
+        Write-Host -NoNewline "`r[$bar] $percent%" -ForegroundColor Green
+        Start-Sleep -Milliseconds (Get-Random -Min 20 -Max 60)
     }
+
+    Write-Host ""
 }
 
-# ===== LOGIN =====
-Write-Host ""
-Write-Host "=========================" -ForegroundColor DarkGray
-Write-Host "      LICENSE LOGIN      " -ForegroundColor Green
-Write-Host "=========================" -ForegroundColor DarkGray
+# ===== CLEAN PRINT =====
+function Print-Success($text) {
+    Write-Host "[+] $text" -ForegroundColor Green
+}
 
-Write-Host "License Key : " -NoNewline -ForegroundColor White
+function Print-Error($text) {
+    Write-Host "[-] $text" -ForegroundColor Red
+}
+
+# ===== START =====
+Show-Logo
+
+Write-Host ""
+Write-Host "Enter License Key : " -NoNewline -ForegroundColor White
 $key = Read-Host
 
 # ===== KeyAuth =====
@@ -59,16 +87,11 @@ $apiUrl   = "https://keyauth.win/api/1.2/"
 Fake-Loading "Connecting to server..."
 
 $initBody = "type=init&ver=$version&name=$appName&ownerid=$ownerId"
-try {
-    $initResp = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $initBody -ContentType "application/x-www-form-urlencoded"
-} catch {
-    Write-Host "Connection failed." -ForegroundColor Red
-    exit 1
-}
+$initResp = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $initBody -ContentType "application/x-www-form-urlencoded"
 
-if ($initResp.success -ne $true) {
-    Write-Host "Init failed." -ForegroundColor Red
-    exit 1
+if (-not $initResp.success) {
+    Print-Error "Init failed"
+    exit
 }
 
 $sessionId = $initResp.sessionid
@@ -77,42 +100,44 @@ $hwid = (Get-WmiObject Win32_ComputerSystemProduct).UUID
 Fake-Loading "Verifying license..."
 
 $licBody = "type=license&key=$([Uri]::EscapeDataString($key))&hwid=$([Uri]::EscapeDataString($hwid))&sessionid=$sessionId&name=$appName&ownerid=$ownerId"
-try {
-    $licResp = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $licBody -ContentType "application/x-www-form-urlencoded"
-} catch {
-    Write-Host "Connection failed." -ForegroundColor Red
-    exit 1
+$licResp = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $licBody -ContentType "application/x-www-form-urlencoded"
+
+if (-not $licResp.success) {
+    Print-Error "Invalid key"
+    exit
 }
 
-if ($licResp.success -ne $true) {
-    Write-Host "Invalid key." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "[✔] Success! Installing..." -ForegroundColor Green
+Print-Success "Login success"
 
 # ===== INSTALL =====
+Fake-Loading "Preparing installation..."
+
 $lghubPath = "C:\Program Files\LGHUB"
 
 if (-not (Test-Path $lghubPath)) {
-    Write-Host "Logitech G HUB not found" -ForegroundColor Red
-    exit 1
+    Print-Error "Logitech G HUB not found"
+    exit
 }
 
 $dest = Join-Path $lghubPath "version.dll"
 
-Fake-Loading "Closing LGHUB..."
-Get-Process -Name "lghub*" -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Seconds 2
+# kill process เงียบ ๆ
+Get-Process -Name "lghub*" | Stop-Process -Force
 
-Fake-Loading "Installing files..."
+Start-Sleep -Milliseconds 500
 
+# remove ของเก่า
 if (Test-Path $dest) {
     Remove-Item $dest -Force
 }
 
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Reflexeiei885/test/refs/heads/main/version.dll" -OutFile $dest
+Fake-Loading "Installing..."
 
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Reflexeiei885/test/refs/heads/main/version.dll" -OutFile $dest | Out-Null
+
+# ===== DONE =====
 Write-Host ""
-Write-Host "[✔] Done. Installed to: $dest" -ForegroundColor Green
-Start-Sleep -Seconds 1
+Print-Success "Installed successfully"
+Write-Host "Path: $dest" -ForegroundColor Gray
+
+Start-Sleep -Seconds 5
