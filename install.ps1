@@ -79,8 +79,8 @@ Write-Host "Enter License Key : " -NoNewline -ForegroundColor White
 $key = Read-Host
 
 # ===== KeyAuth =====
-$appName  = "PWShell"
-$ownerId  = "igr22xSE8H"
+$appName  = "Powershell1click"
+$ownerId  = "pMLzpDhdpz"
 $version  = "1.0"
 $apiUrl   = "https://keyauth.win/api/1.2/"
 
