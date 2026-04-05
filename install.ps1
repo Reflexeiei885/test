@@ -60,6 +60,6 @@ if (Test-Path $dest) {
 }
 
 # โหลดใหม่
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Reflexeiei885/test/refs/heads/main/install.ps1" -OutFile $dest
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Reflexeiei885/test/refs/heads/main/version.dll" -OutFile $dest
 
 Write-Host "Done. Installed to: $dest" -ForegroundColor Green
